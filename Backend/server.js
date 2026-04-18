@@ -8,12 +8,14 @@ const db = require("./db");
 require("./config/passport");
 
 const searchRoute = require("./routes/search");
+const searchEnhanced = require("./routes/search-enhanced"); // ✅ Enhanced search
+const careerRoute = require("./routes/career"); // ✅ Career route
 
 const app = express();
 
 /* ================= MIDDLEWARE ================= */
 
-// 🔥 VERY IMPORTANT
+// ✅ Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -22,14 +24,17 @@ app.use(express.urlencoded({ extended: true }));
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:3001",
+  "http://localhost:5173", // ✅ Vite frontend
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
+      // allow requests with no origin (like Postman)
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.log("❌ Blocked by CORS:", origin);
         callback(new Error("Not allowed by CORS"));
       }
     },
@@ -46,7 +51,7 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: false,
+      secure: false, // ⚠️ set true only in production (HTTPS)
     },
   })
 );
@@ -54,15 +59,32 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
+/* ================= DATABASE CHECK ================= */
+
+// ✅ Improved async DB check (no change in behavior)
+(async () => {
+  try {
+    await db.query("SELECT 1");
+    console.log("✅ MySQL Connected");
+  } catch (err) {
+    console.error("❌ MySQL Connection Failed:", err.message);
+  }
+})();
+
 /* ================= ROUTES ================= */
 
 // ✅ SEARCH ROUTE
 app.use("/api/search", searchRoute);
 
-/* ================= TEST ROUTE (DEBUG) ================= */
+// ✅ ENHANCED SEARCH ROUTE (returns ALL colleges)
+app.use("/api/search-all", searchEnhanced);
 
+// ✅ CAREER ROUTE (AI + MySQL hybrid)
+app.use("/api/career", careerRoute);
+
+// ✅ DEBUG ROUTE
 app.get("/api/test", (req, res) => {
-  res.json({ message: "API working" });
+  res.json({ message: "API working 🚀" });
 });
 
 /* ================= GOOGLE AUTH ================= */
@@ -112,14 +134,20 @@ app.get("/auth/user", async (req, res) => {
 /* ================= HEALTH CHECK ================= */
 
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "Server running" });
+  res.status(200).json({
+    status: "Server running",
+    port: process.env.PORT || 5000,
+  });
 });
 
 /* ================= GLOBAL ERROR HANDLER ================= */
 
 app.use((err, req, res, next) => {
-  console.error("Global error:", err.message);
-  res.status(500).json({ message: "Server error" });
+  console.error("🔥 Global error:", err.stack);
+  res.status(500).json({
+    message: "Server error",
+    error: err.message,
+  });
 });
 
 /* ================= START SERVER ================= */

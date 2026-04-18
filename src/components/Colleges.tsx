@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
 import { MapPin, Heart } from "lucide-react";
 
 /* ================= TYPES ================= */
@@ -25,12 +24,55 @@ export function Colleges({ onCollegeClick }: CollegesProps) {
   const [colleges, setColleges] = useState<College[]>([]);
   const [loading, setLoading] = useState(false);
   const [savedColleges, setSavedColleges] = useState<number[]>([]);
+  const [userLat, setUserLat] = useState<number | null>(null);
+  const [userLng, setUserLng] = useState<number | null>(null);
+  const hasSkippedFirstSearchEffect = useRef(false);
 
-  /* ================= PAGE LOAD → NEARBY ================= */
+  /* ================= PAGE LOAD → GET USER LOCATION ================= */
 
   useEffect(() => {
-    fetchNearbyColleges();
+    // Get user location on mount
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLat(position.coords.latitude);
+          setUserLng(position.coords.longitude);
+          fetchNearbyColleges(position.coords.latitude, position.coords.longitude);
+        },
+        () => {
+          // If geolocation fails, load all colleges
+          fetchNearbyColleges();
+        }
+      );
+    } else {
+      fetchNearbyColleges();
+    }
   }, []);
+
+  useEffect(() => {
+    if (!hasSkippedFirstSearchEffect.current) {
+      hasSkippedFirstSearchEffect.current = true;
+      return;
+    }
+
+    const trimmedQuery = searchQuery.trim();
+
+    const timeoutId = window.setTimeout(async () => {
+      setLoading(true);
+
+      if (trimmedQuery) {
+        await fetchFromDatabase(trimmedQuery);
+      } else {
+        await fetchNearbyColleges(userLat ?? undefined, userLng ?? undefined);
+      }
+
+      setLoading(false);
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [searchQuery, userLat, userLng]);
 
   /* ================= MAIN SEARCH BUTTON ================= */
 
@@ -45,25 +87,33 @@ export function Colleges({ onCollegeClick }: CollegesProps) {
     }
 
     // If empty → show nearby again
-    await fetchNearbyColleges();
+    await fetchNearbyColleges(userLat ?? undefined, userLng ?? undefined);
     setLoading(false);
   };
 
-  /* ================= DATABASE SEARCH ================= */
+  /* ================= DATABASE SEARCH WITH USER LOCATION ================= */
 
   const fetchFromDatabase = async (query: string) => {
     try {
+      const params = new URLSearchParams();
+      params.append('query', query);
+      if (userLat !== null && userLng !== null) {
+        params.append('latitude', String(userLat));
+        params.append('longitude', String(userLng));
+      }
+
       const response = await fetch(
-        `http://localhost:5000/api/search?query=${query}`
+        `http://localhost:5000/api/search/maharashtra/search?${params.toString()}`
       );
 
       const data = await response.json();
 
       const formatted = (data.results || []).map(
-        (item: any, index: number) => ({
-          id: index,
+        (item: any) => ({
+          id: item.id || 0,
           name: item.college_name,
           location: `${item.district}, ${item.state}`,
+          distance: item.distance ? `${Number(item.distance).toFixed(1)} km away` : undefined,
         })
       );
 
@@ -74,41 +124,33 @@ export function Colleges({ onCollegeClick }: CollegesProps) {
     }
   };
 
-  /* ================= NEARBY SEARCH ================= */
+  /* ================= MAHARASHTRA COLLEGES WITH LOCATION SORTING ================= */
 
-  const fetchNearbyColleges = async () => {
-    if (!navigator.geolocation) {
-      setColleges([]);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const response = await fetch(
-            "http://localhost:5000/api/search/smart",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                query: "",
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-              }),
-            }
-          );
-
-          const data = await response.json();
-          setColleges(data.results || []);
-        } catch (error) {
-          console.error("Nearby search failed:", error);
-          setColleges([]);
-        }
-      },
-      () => {
-        setColleges([]);
+  const fetchNearbyColleges = async (lat?: number, lng?: number) => {
+    try {
+      const params = new URLSearchParams();
+      params.append('limit', '100');
+      if (lat !== undefined && lng !== undefined) {
+        params.append('latitude', String(lat));
+        params.append('longitude', String(lng));
       }
-    );
+
+      const response = await fetch(
+        `http://localhost:5000/api/search/maharashtra/all?${params.toString()}`
+      );
+
+      const data = await response.json();
+      const formatted = (data.results || []).map((item: any) => ({
+        id: item.id || 0,
+        name: item.college_name,
+        location: `${item.district}, ${item.state}`,
+        distance: item.distance ? `${Number(item.distance).toFixed(1)} km away` : undefined,
+      }));
+      setColleges(formatted);
+    } catch (error) {
+      console.error("Maharashtra search failed:", error);
+      setColleges([]);
+    }
   };
 
   /* ================= SAVE BUTTON ================= */
@@ -190,7 +232,7 @@ export function Colleges({ onCollegeClick }: CollegesProps) {
 
                   {college.distance && (
                     <div className="text-sm text-blue-600 mt-2">
-                      {college.distance} km away
+                      {college.distance}
                     </div>
                   )}
                 </div>

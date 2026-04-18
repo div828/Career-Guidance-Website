@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Header } from "./components/Header";
 import { Homepage } from "./components/Homepage";
 import { AptitudeQuiz } from "./components/AptitudeQuiz";
-import { CareerOptions } from "./components/CareerOptions";
+import { CareerOptionsFinal } from "./components/CareerOptionsFinal";
 import { Colleges } from "./components/Colleges";
 import { ExamTimeline } from "./components/ExamTimeline";
 import { Resources } from "./components/Resources";
@@ -104,7 +104,7 @@ export default function App() {
         return user ? <AptitudeQuiz /> : <Login />;
 
       case "careers":
-        return <CareerOptions />;
+        return <CareerOptionsFinal />;
 
       case "colleges":
         return (

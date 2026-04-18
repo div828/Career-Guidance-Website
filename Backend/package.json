@@ -5,10 +5,12 @@
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "import:colleges": "node scripts/import_colleges_csv.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "csv-parser": "^3.2.0",
     "dotenv": "^16.4.5",
     "express": "^4.18.2",
     "express-session": "^1.17.3",

@@ -8,7 +8,7 @@ const db = require("./db");
 require("./config/passport");
 
 const searchRoute = require("./routes/search");
-const searchEnhanced = require("./routes/search-enhanced"); // ✅ Enhanced search
+const searchEnhanced = require("./routes/search"); // ✅ Enhanced search
 const careerRoute = require("./routes/career"); // ✅ Career route
 
 const app = express();
@@ -79,7 +79,7 @@ app.use("/api/search", searchRoute);
 // ✅ ENHANCED SEARCH ROUTE (returns ALL colleges)
 app.use("/api/search-all", searchEnhanced);
 
-// ✅ CAREER ROUTE (AI + MySQL hybrid)
+// ✅ CAREER ROUTE
 app.use("/api/career", careerRoute);
 
 // ✅ DEBUG ROUTE

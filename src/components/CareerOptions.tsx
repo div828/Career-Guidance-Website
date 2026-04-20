@@ -49,7 +49,9 @@ export const CareerOptions = () => {
     const normalizedTitle = careerTitle.trim().toLowerCase();
     const careerUrl =
       careerPageMap[normalizedTitle] ||
-      "https://www.careers360.com/careers";
+      `https://www.google.com/search?btnI=I&q=${encodeURIComponent(
+        `${careerTitle} career path eligibility courses skills salary India`
+      )}`;
 
     window.open(
       careerUrl,
@@ -70,27 +72,32 @@ export const CareerOptions = () => {
     "Social",
   ];
 
-  /* 🎨 CATEGORY COLORS + ICONS */
+    /* CATEGORY COLORS + ICONS */
   const categoryStyles: any = {
-    Technical: { bg: "bg-blue-100", icon: "💻" },
-    Medical: { bg: "bg-pink-100", icon: "🩺" },
-    Creative: { bg: "bg-purple-100", icon: "🎨" },
-    Business: { bg: "bg-yellow-100", icon: "📊" },
-    Legal: { bg: "bg-gray-200", icon: "⚖️" },
-    Science: { bg: "bg-green-100", icon: "🔬" },
-    Government: { bg: "bg-indigo-100", icon: "🏛️" },
-    Social: { bg: "bg-orange-100", icon: "🤝" },
+    Technical: { bg: "bg-blue-100", icon: "IT" },
+    Medical: { bg: "bg-pink-100", icon: "MD" },
+    Creative: { bg: "bg-purple-100", icon: "CR" },
+    Business: { bg: "bg-yellow-100", icon: "BS" },
+    Legal: { bg: "bg-gray-200", icon: "LW" },
+    Science: { bg: "bg-green-100", icon: "SC" },
+    Government: { bg: "bg-indigo-100", icon: "GV" },
+    Social: { bg: "bg-orange-100", icon: "SO" },
   };
 
   /* ================= FETCH ================= */
   useEffect(() => {
     fetch("http://localhost:5000/api/career/all")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Career API error: ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
         setCareers(data);
         setFiltered(data);
       })
-      .catch((err) => console.error(err));
+      .catch((err) => console.error("Career fetch failed:", err));
   }, []);
 
   /* ================= FILTER ================= */
@@ -159,7 +166,7 @@ export const CareerOptions = () => {
           filtered.map((c) => {
             const style = categoryStyles[c.category] || {
               bg: "bg-gray-100",
-              icon: "💼",
+              icon: "CA",
             };
 
             return (
@@ -244,3 +251,4 @@ export const CareerOptions = () => {
     </div>
   );
 };
+

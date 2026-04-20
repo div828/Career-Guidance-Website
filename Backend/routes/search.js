@@ -183,30 +183,44 @@ const resolveOfficialWebsite = async (collegeName, location = "") => {
   }
 
   const query = `${collegeName} ${location} official website`;
-  const response = await fetch(
-    `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
-    {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-      },
-    }
-  );
+  const fallbackUrl = `https://www.google.com/search?btnI=I&q=${encodeURIComponent(query)}`;
+  let preferred = fallbackUrl;
 
-  const html = await response.text();
-  const matches = [
-    ...html.matchAll(/<a[^>]+class="result__a"[^>]+href="([^"]+)"/gi),
-  ];
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-  const resolvedCandidates = matches
-    .map((match) => decodeDuckDuckGoHref(match[1]))
-    .filter((url) => /^https?:\/\//i.test(url))
-    .filter((url) => !isBlockedDomain(url));
+    const response = await fetch(
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
+      {
+        signal: controller.signal,
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+        },
+      }
+    );
 
-  const preferred =
-    resolvedCandidates.find((url) => looksLikeOfficialCollegeSite(url, collegeName)) ||
-    resolvedCandidates[0] ||
-    "";
+    clearTimeout(timeoutId);
+
+    const html = await response.text();
+    const matches = [
+      ...html.matchAll(/<a[^>]+class="result__a"[^>]+href="([^"]+)"/gi),
+    ];
+
+    const resolvedCandidates = matches
+      .map((match) => decodeDuckDuckGoHref(match[1]))
+      .filter((url) => /^https?:\/\//i.test(url))
+      .filter((url) => !isBlockedDomain(url));
+
+    preferred =
+      resolvedCandidates.find((url) => looksLikeOfficialCollegeSite(url, collegeName)) ||
+      resolvedCandidates[0] ||
+      fallbackUrl;
+  } catch (error) {
+    console.error("Official website lookup timed out or failed:", error.message);
+    preferred = fallbackUrl;
+  }
 
   officialWebsiteCache.set(cacheKey, preferred);
   return preferred;
